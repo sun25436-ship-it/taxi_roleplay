@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>코너 예약</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;background:#F5F5F0;min-height:100vh;}
+.hide{display:none!important;}
+.page{min-height:100vh;}
+
+/* 공통 버튼 */
+.btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-yellow{background:#FFC107;color:#1A1A1A;}
+.btn-dark{background:#1A1A1A;color:#FFC107;}
+.btn-green{background:#2ECC71;color:#fff;}
+.btn-red{background:#FDE8E8;color:#C0392B;}
+.btn:active{opacity:.75;}
+
+/* 입력 */
+input{border:none;outline:none;font-size:15px;font-family:inherit;background:transparent;width:100%;color:#1A1A1A;}
+input::placeholder{color:#C8C4BC;}
+input[type=datetime-local]{color:#1A1A1A;}
+
+/* 체크무늬 */
+.stripe-yellow{background-image:repeating-linear-gradient(45deg,#FFC107 0 10px,#1A1A1A 10px 20px);}
+.stripe-dark{background-image:repeating-linear-gradient(45deg,#1A1A1A 0 10px,#FFC107 10px 20px);}
+
+/* 탑 토글 */
+#mode-toggle{position:fixed;top:12px;right:12px;z-index:9999;background:rgba(255,255,255,.95);border:1px solid #E0DDD5;border-radius:99px;padding:4px;display:flex;box-shadow:0 2px 12px rgba(0,0,0,.12);}
+#mode-toggle button{border:none;cursor:pointer;border-radius:99px;padding:7px 16px;font-size:12px;font-weight:700;background:transparent;color:#8A8578;font-family:inherit;}
+#mode-toggle .active-p{background:#FFC107;color:#1A1A1A;}
+#mode-toggle .active-d{background:#1A1A1A;color:#FFC107;}
+
+/* 상태 뱃지 */
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;}
+
+/* 필드 행 */
+.field-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #ECEAE3;}
+.field-row:last-child{border-bottom:none;}
+.field-icon{width:36px;height:36px;border-radius:8px;background:#FFF4CC;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px;}
+.field-label{font-size:11px;font-weight:600;color:#8A8578;margin-bottom:2px;}
+
+/* 카드 */
+.card{background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:16px;margin-bottom:12px;position:relative;}
+.card-accepted{border-color:#2ECC71;}
+
+/* 콘페티 */
+.confetti-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.bit{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.65;}
+
+/* 스피너 */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:20px;height:20px;border:3px solid rgba(255,255,255,.3);border-top-color:#FFC107;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+
+/* 페이드 업 */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.fadeUp{animation:fadeUp .3s ease;}
+
+/* 에러 */
+.err-msg{display:flex;align-items:center;gap:6px;color:#C0392B;font-size:13px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<!-- 모드 전환 -->
+<div id="mode-toggle">
+  <button id="btn-p" class="active-p" onclick="setMode('passenger')">승객</button>
+  <button id="btn-d" onclick="setMode('driver')">기사님</button>
+</div>
+
+<!-- ===================== 승객 화면들 ===================== -->
+<div id="p-home" class="page">
+  <div style="min-height:100vh;background:#1A1A1A;display:flex;flex-direction:column;">
+    <div style="height:8px;" class="stripe-yellow"></div>
+    <div style="padding:32px 24px 8px;">
+      <div style="color:#FFC107;font-size:11px;font-weight:700;letter-spacing:.3em;">CORNER CALL</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 24px 36px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="width:42px;height:42px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:20px;">🚕</div>
+        <span style="color:#FFC107;font-weight:900;font-size:19px;">코너 예약</span>
+      </div>
+      <h1 style="color:#fff;font-weight:900;font-size:30px;line-height:1.25;margin-bottom:14px;">
+        모퉁이에서 부르듯<br>간단하게, 코너 택시
+      </h1>
+      <p style="color:#B8B4A8;font-size:15px;line-height:1.7;margin-bottom:32px;">
+        이름과 출발지, 도착지, 시간만 입력하면<br>가까운 기사님께 바로 전달됩니다.
+      </p>
+      <button class="btn btn-yellow" onclick="showPage('p-form')" style="justify-content:space-between;padding:16px 20px;">
+        <span style="display:flex;align-items:center;gap:8px;">🕐 지금 택시 예약하기</span>
+        <span>›</span>
+      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:18px;">
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">24시간</div>
+          <div style="color:#B8B4A8;font-size:11px;">운행</div>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">실시간</div>
+          <div style="color:#B8B4A8;font-size:11px;">배차</div>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">전 지역</div>
+          <div style="color:#B8B4A8;font-size:11px;">이동</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="p-form" class="page hide">
+  <div style="background:#FFC107;padding:52px 24px 28px;position:relative;overflow:hidden;">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:8px;" class="stripe-dark"></div>
+    <button onclick="showPage('p-home')" style="background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;opacity:.7;margin-bottom:12px;font-family:inherit;">← 처음으로</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:20px;">🚕</span>
+      <h2 style="font-weight:900;font-size:22px;color:#1A1A1A;">택시 예약하기</h2>
+    </div>
+    <p style="font-size:13px;opacity:.7;margin-top:4px;">아래 정보를 입력해 주세요</p>
+  </div>
+  <div style="padding:20px;">
+    <div style="background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:0 16px;">
+      <div class="field-row">
+        <div class="field-icon">👤</div>
+        <div style="flex:1;"><div class="field-label">이름</div><input id="f-name" placeholder="이름을 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">📍</div>
+        <div style="flex:1;"><div class="field-label">출발지</div><input id="f-from" placeholder="출발지를 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">🏁</div>
+        <div style="flex:1;"><div class="field-label">도착지</div><input id="f-to" placeholder="도착지를 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">🕐</div>
+        <div style="flex:1;"><div class="field-label">예약 시간</div><input type="datetime-local" id="f-time"/></div>
+      </div>
+      <div class="field-row" style="border-bottom:none;">
+        <div class="field-icon">📞</div>
+        <div style="flex:1;"><div class="field-label">연락처 (선택)</div><input id="f-phone" placeholder="연락처를 입력하세요" type="tel"/></div>
+      </div>
+    </div>
+    <div id="f-err" class="err-msg hide">⚠️ 이름·출발지·도착지·예약시간을 입력해 주세요.</div>
+    <button class="btn btn-dark" style="margin-top:18px;" onclick="submitForm()">예약 신청 →</button>
+    <p style="text-align:center;color:#B8B4A8;font-size:12px;margin-top:18px;">코너 예약 · 안전한 이동</p>
+  </div>
+</div>
+
+<div id="p-done" class="page hide fadeUp">
+  <div style="min-height:100vh;background:#FBF8EE;display:flex;flex-direction:column;align-items:center;padding:70px 24px 40px;position:relative;overflow:hidden;">
+    <div class="confetti-wrap" id="confetti"></div>
+    <div id="done-icon" style="width:80px;height:80px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:20px;position:relative;z-index:1;">✓</div>
+    <h2 id="done-title" style="font-weight:900;font-size:22px;text-align:center;margin-bottom:8px;position:relative;z-index:1;">예약이 접수되었습니다!</h2>
+    <p id="done-sub" style="color:#8A8578;font-size:14px;text-align:center;margin-bottom:24px;position:relative;z-index:1;">기사님 확인 후 곧 배정해드릴게요.</p>
+    <div style="width:100%;background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:4px 20px;position:relative;z-index:1;">
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🕐 접수 시간</span><span id="r-time" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">👤 이름</span><span id="r-name" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">📍 출발지</span><span id="r-from" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🏁 도착지</span><span id="r-to" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row" style="border-bottom:none;"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🚕 상태</span><span id="r-status" style="margin-left:auto;"></span></div>
+    </div>
+    <button class="btn btn-yellow" style="margin-top:24px;position:relative;z-index:1;" onclick="showPage('p-home');resetForm();">🏠 메인으로 돌아가기</button>
+  </div>
+</div>
+
+<!-- ===================== 기사님 화면들 ===================== -->
+<div id="d-login" class="page hide">
+  <div style="min-height:100vh;background:#1A1A1A;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;">
+    <div style="width:100%;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
+        <div style="width:44px;height:44px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:22px;">🚕</div>
+        <span style="color:#FFC107;font-weight:900;font-size:20px;">코너 예약 · 기사님</span>
+      </div>
+      <div style="background:#242424;border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,.1);">
+        <label style="color:#B8B4A8;font-size:12px;font-weight:600;display:block;margin-bottom:6px;">이름</label>
+        <input id="d-name" placeholder="기사님 이름" style="width:100%;background:#1A1A1A;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 16px;font-size:15px;margin-bottom:16px;font-family:inherit;"/>
+        <label style="color:#B8B4A8;font-size:12px;font-weight:600;display:block;margin-bottom:6px;">🔒 비밀번호</label>
+        <input id="d-pw" type="password" placeholder="••••" style="width:100%;background:#1A1A1A;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 16px;font-size:15px;letter-spacing:4px;font-family:monospace;"/>
+        <div id="d-err" class="err-msg hide" style="color:#FF6B6B;">⚠️ <span id="d-err-txt"></span></div>
+        <button class="btn btn-yellow" style="margin-top:20px;" onclick="driverLogin()">기사님으로 로그인</button>
+      </div>
+      <p style="color:#6B675C;font-size:11px;text-align:center;margin-top:14px;">관리자가 부여한 비밀번호로만 접속할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<div id="d-board" class="page hide">
+  <div style="background:#1A1A1A;padding:44px 20px 14px;position:sticky;top:0;z-index:100;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:18px;">🚕</div>
+        <div>
+          <div id="d-username" style="color:#fff;font-weight:700;font-size:14px;"></div>
+          <div id="d-clock" style="color:#8A8578;font-size:11px;font-family:monospace;"></div>
+        </div>
+      </div>
+      <button onclick="driverLogout()" style="background:none;border:none;cursor:pointer;color:#B8B4A8;font-size:12px;font-weight:600;font-family:inherit;">로그아웃 ↩</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="tab-active" onclick="setTab('active')" style="background:#FFC107;color:#1A1A1A;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">대기/내 운행</button>
+      <button id="tab-mine"   onclick="setTab('mine')"   style="background:rgba(255,255,255,.1);color:#B8B4A8;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">내 콜 전체</button>
+      <button id="tab-all"    onclick="setTab('all')"    style="background:rgba(255,255,255,.1);color:#B8B4A8;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">전체 콜</button>
+    </div>
+  </div>
+  <div id="wait-banner" class="hide" style="margin:14px 20px 0;">
+    <div style="background:#FFF4CC;color:#8A6D00;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;">🕐 <span id="wait-cnt"></span>건의 배차 대기 콜이 있습니다</div>
+  </div>
+  <div id="ride-list" style="padding:14px 20px 80px;"></div>
+</div>
+
+<script>
+/* ───── 설정 ───── */
+const DRIVER_PW = "1247";
+const POLL_MS   = 3000;
+const KEY       = "corner_v3_rides";
+
+/* ───── 상태 ───── */
+let currentMode   = "passenger";
+let currentRideId = null;
+let currentDriver = null;
+let currentTab    = "active";
+let pollTimer     = null;
+let clockTimer    = null;
+
+/* ───── 저장소 ───── */
+function loadRides(){
+  try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):[]; }catch{ return []; }
+}
+function saveRides(arr){ localStorage.setItem(KEY,JSON.stringify(arr)); }
+
+/* ───── 유틸 ───── */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function p2(n){ return String(n).padStart(2,"0"); }
+function nowStr(){
+  const d=new Date(), day=["일","월","화","수","목","금","토"];
+  return d.getFullYear()+"."+p2(d.getMonth()+1)+"."+p2(d.getDate())+"("+day[d.getDay()]+") "+p2(d.getHours())+":"+p2(d.getMinutes());
+}
+function pillHtml(s){
+  const m={waiting:{t:"배차 대기",bg:"#FFF4CC",fg:"#8A6D00"},accepted:{t:"운행 중",bg:"#E4F8EC",fg:"#1E8F4E"},done:{t:"운행 완료",bg:"#EDEDED",fg:"#555"},canceled:{t:"취소됨",bg:"#FDE8E8",fg:"#C0392B"}};
+  const v=m[s]||m.waiting;
+  return `<span class="pill" style="background:${v.bg};color:${v.fg};">${v.t}</span>`;
+}
+
+/* ───── 페이지 전환 ───── */
+function showPage(id){
+  ["p-home","p-form","p-done","d-login","d-board"].forEach(p=>document.getElementById(p).classList.add("hide"));
+  document.getElementById(id).classList.remove("hide");
+  window.scrollTo(0,0);
+}
+
+/* ───── 모드 전환 ───── */
+function setMode(m){
+  currentMode=m;
+  document.getElementById("btn-p").className = m==="passenger"?"active-p":"";
+  document.getElementById("btn-d").className = m==="driver"?"active-d":"";
+  if(m==="passenger"){
+    stopPoll(); showPage("p-home");
+  } else {
+    stopPoll();
+    if(currentDriver){ showPage("d-board"); startDash(); }
+    else showPage("d-login");
+  }
+}
+
+/* ───── 승객: 폼 제출 ───── */
+function submitForm(){
+  const name=document.getElementById("f-name").value.trim();
+  const from=document.getElementById("f-from").value.trim();
+  const to  =document.getElementById("f-to").value.trim();
+  const time=document.getElementById("f-time").value;
+  const phone=document.getElementById("f-phone").value.trim();
+  const errEl=document.getElementById("f-err");
+
+  if(!name||!from||!to||!time){ errEl.classList.remove("hide"); return; }
+  errEl.classList.add("hide");
+
+  const ride={id:uid(),name,from,to,time,phone,status:"waiting",createdAt:Date.now(),createdAtLabel:nowStr(),driverName:null};
+  saveRides([ride,...loadRides()]);
+  currentRideId=ride.id;
+
+  // 완료 화면 채우기
+  document.getElementById("r-time").textContent=ride.createdAtLabel;
+  document.getElementById("r-name").textContent=ride.name;
+  document.getElementById("r-from").textContent=ride.from;
+  document.getElementById("r-to").textContent=ride.to;
+  document.getElementById("r-status").innerHTML=pillHtml("waiting");
+
+  // 콘페티
+  makeConfetti();
+
+  showPage("p-done");
+
+  // 상태 폴링 (기사 수락 여부 확인)
+  startPassengerPoll();
+}
+
+function resetForm(){
+  ["f-name","f-from","f-to","f-time","f-phone"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f-err").classList.add("hide");
+  stopPoll();
+}
+
+function startPassengerPoll(){
+  stopPoll();
+  pollTimer=setInterval(()=>{
+    const r=loadRides().find(x=>x.id===currentRideId);
+    if(!r)return;
+    document.getElementById("r-status").innerHTML=pillHtml(r.status);
+    if(r.status==="accepted"){
+      document.getElementById("done-icon").style.background="#2ECC71";
+      document.getElementById("done-title").textContent="기사님이 배정되었습니다!";
+      document.getElementById("done-sub").textContent=(r.driverName||"기사님")+"님이 곧 이동합니다.";
+    }
+  },POLL_MS);
+}
+
+/* ───── 콘페티 ───── */
+function makeConfetti(){
+  const wrap=document.getElementById("confetti");
+  wrap.innerHTML="";
+  const cols=["#FFC107","#1A1A1A","#2ECC71","#B8B4A8"];
+  for(let i=0;i<16;i++){
+    const d=document.createElement("div");
+    d.className="bit";
+    d.style.cssText=`left:${(i*37)%100}%;top:${(i*53)%58}px;background:${cols[i%4]};transform:rotate(${i*23}deg);`;
+    wrap.appendChild(d);
+  }
+}
+
+/* ───── 기사님 로그인 ───── */
+function driverLogin(){
+  const nm=document.getElementById("d-name").value.trim();
+  const pw=document.getElementById("d-pw").value;
+  const errEl=document.getElementById("d-err");
+  const errTx=document.getElementById("d-err-txt");
+
+  if(!nm){ errTx.textContent="이름을 입력해 주세요."; errEl.classList.remove("hide"); return; }
+  if(pw!==DRIVER_PW){ errTx.textContent="비밀번호가 올바르지 않습니다."; errEl.classList.remove("hide"); return; }
+  errEl.classList.add("hide");
+
+  currentDriver=nm;
+  document.getElementById("d-username").textContent=nm+" 기사님";
+  showPage("d-board");
+  startDash();
+}
+
+function driverLogout(){
+  currentDriver=null; stopPoll();
+  document.getElementById("d-name").value="";
+  document.getElementById("d-pw").value="";
+  showPage("d-login");
+}
+
+/* ───── 기사님 대시보드 ───── */
+function setTab(t){
+  currentTab=t;
+  ["active","mine","all"].forEach(k=>{
+    const el=document.getElementById("tab-"+k);
+    if(k===t){ el.style.background="#FFC107"; el.style.color="#1A1A1A"; }
+    else{ el.style.background="rgba(255,255,255,.1)"; el.style.color="#B8B4A8"; }
+  });
+  renderRides();
+}
+
+function startDash(){
+  stopPoll();
+  startClock();
+  renderRides();
+  pollTimer=setInterval(renderRides,POLL_MS);
+}
+
+function startClock(){
+  if(clockTimer)clearInterval(clockTimer);
+  const el=document.getElementById("d-clock");
+  const tick=()=>{ const d=new Date(); el.textContent="↺ "+p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds()); };
+  tick(); clockTimer=setInterval(tick,1000);
+}
+
+function renderRides(){
+  const all=loadRides();
+  const waitN=all.filter(r=>r.status==="waiting").length;
+  const banner=document.getElementById("wait-banner");
+  if(waitN>0){ banner.classList.remove("hide"); document.getElementById("wait-cnt").textContent=waitN; }
+  else banner.classList.add("hide");
+
+  let list=all.filter(r=>{
+    if(currentTab==="active") return r.status==="waiting"||(r.status==="accepted"&&r.driverName===currentDriver);
+    if(currentTab==="mine")   return r.driverName===currentDriver;
+    return true;
+  }).sort((a,b)=>b.createdAt-a.createdAt);
+
+  const wrap=document.getElementById("ride-list");
+  if(list.length===0){
+    wrap.innerHTML='<div style="text-align:center;color:#8A8578;font-size:14px;padding:60px 0;">표시할 콜이 없습니다.<br>새 예약이 들어오면 자동으로 나타나요.</div>';
+    return;
+  }
+
+  wrap.innerHTML=list.map(r=>rideCard(r)).join("");
+}
+
+function rideCard(r){
+  const mine=r.driverName===currentDriver;
+  const borderCol=r.status==="accepted"&&mine?"#2ECC71":"#ECEAE3";
+  const opac=r.status==="done"?"opacity:.45;":"";
+  const timeFmt=r.time?r.time.replace("T"," "):"-";
+
+  let btns="";
+  if(r.status==="waiting"){
+    btns=`<button class="btn btn-dark" onclick="acceptRide('${r.id}')" style="margin-top:12px;">이 콜 수락하기</button>`;
+  } else if(r.status==="accepted"&&mine){
+    btns=`<div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-green" onclick="completeRide('${r.id}')" style="flex:1;">운행 완료</button>
+      <button class="btn btn-red" onclick="cancelRide('${r.id}')" style="width:68px;flex:none;font-size:13px;">취소</button>
+    </div>`;
+  } else if(r.status==="accepted"&&!mine){
+    btns=`<div style="text-align:center;color:#8A8578;font-size:13px;margin-top:10px;">${r.driverName} 기사님이 운행 중</div>`;
+  }
+
+  const checkBadge=r.status==="accepted"&&mine
+    ?`<div style="position:absolute;top:-10px;right:-10px;width:28px;height:28px;border-radius:99px;background:#2ECC71;display:flex;align-items:center;justify-content:center;font-size:14px;transform:rotate(-12deg);box-shadow:0 2px 6px rgba(0,0,0,.15);">✓</div>`:"";
+
+  return `<div class="card" style="border-color:${borderCol};${opac}">
+    ${checkBadge}
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+      <div>
+        <div style="font-weight:900;font-size:16px;color:#1A1A1A;">${r.name} 고객님</div>
+        <div style="font-size:12px;color:#8A8578;font-family:monospace;">접수 ${r.createdAtLabel}</div>
+      </div>
+      ${pillHtml(r.status)}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1A1A1A;">📍 출발: ${r.from}</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1A1A1A;">🏁 도착: ${r.to}</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#8A8578;">🕐 <span style="font-family:monospace;">${timeFmt}</span></div>
+      ${r.phone?`<div style="font-size:12px;color:#8A8578;">📞 ${r.phone}</div>`:""}
+    </div>
+    ${btns}
+  </div>`;
+}
+
+function acceptRide(id){
+  const rides=loadRides();
+  const next=rides.map(r=>r.id===id?{...r,status:"accepted",driverName:currentDriver}:r);
+  saveRides(next); renderRides();
+}
+function completeRide(id){
+  const rides=loadRides();
+  const next=rides.map(r=>r.id===id?{...r,status:"done"}:r);
+  saveRides(next); renderRides();
+}
+function cancelRide(id){
+  const rides=loadRides();
+  const next=rides.map(r=>r.id===id?{...r,status:"waiting",driverName:null}:r);
+  saveRides(next); renderRides();
+}
+
+function stopPoll(){
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+}
+
+/* ───── 시작 ───── */
+showPage("p-home");
+</script>
+</body>
+</html>
