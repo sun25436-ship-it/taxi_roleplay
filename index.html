@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>코너 예약</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;background:#F5F5F0;min-height:100vh;}
+.hide{display:none!important;}
+.page{min-height:100vh;}
+
+/* 공통 버튼 */
+.btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-yellow{background:#FFC107;color:#1A1A1A;}
+.btn-dark{background:#1A1A1A;color:#FFC107;}
+.btn-green{background:#2ECC71;color:#fff;}
+.btn-red{background:#FDE8E8;color:#C0392B;}
+.btn:active{opacity:.75;}
+
+/* 입력 */
+input{border:none;outline:none;font-size:15px;font-family:inherit;background:transparent;width:100%;color:#1A1A1A;}
+input::placeholder{color:#C8C4BC;}
+input[type=datetime-local]{color:#1A1A1A;}
+
+/* 체크무늬 */
+.stripe-yellow{background-image:repeating-linear-gradient(45deg,#FFC107 0 10px,#1A1A1A 10px 20px);}
+.stripe-dark{background-image:repeating-linear-gradient(45deg,#1A1A1A 0 10px,#FFC107 10px 20px);}
+
+/* 탑 토글 */
+#mode-toggle{position:fixed;top:12px;right:12px;z-index:9999;background:rgba(255,255,255,.95);border:1px solid #E0DDD5;border-radius:99px;padding:4px;display:flex;box-shadow:0 2px 12px rgba(0,0,0,.12);}
+#mode-toggle button{border:none;cursor:pointer;border-radius:99px;padding:7px 16px;font-size:12px;font-weight:700;background:transparent;color:#8A8578;font-family:inherit;}
+#mode-toggle .active-p{background:#FFC107;color:#1A1A1A;}
+#mode-toggle .active-d{background:#1A1A1A;color:#FFC107;}
+
+/* 상태 뱃지 */
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;}
+
+/* 필드 행 */
+.field-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #ECEAE3;}
+.field-row:last-child{border-bottom:none;}
+.field-icon{width:36px;height:36px;border-radius:8px;background:#FFF4CC;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px;}
+.field-label{font-size:11px;font-weight:600;color:#8A8578;margin-bottom:2px;}
+
+/* 카드 */
+.card{background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:16px;margin-bottom:12px;position:relative;}
+.card-accepted{border-color:#2ECC71;}
+
+/* 콘페티 */
+.confetti-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.bit{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.65;}
+
+/* 스피너 */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:20px;height:20px;border:3px solid rgba(255,255,255,.3);border-top-color:#FFC107;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+
+/* 페이드 업 */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.fadeUp{animation:fadeUp .3s ease;}
+
+/* 에러 */
+.err-msg{display:flex;align-items:center;gap:6px;color:#C0392B;font-size:13px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<!-- 모드 전환 -->
+<div id="mode-toggle">
+  <button id="btn-p" class="active-p" onclick="setMode('passenger')">승객</button>
+  <button id="btn-d" onclick="setMode('driver')">기사님</button>
+</div>
+
+<!-- ===================== 승객 화면들 ===================== -->
+<div id="p-home" class="page">
+  <div style="min-height:100vh;background:#1A1A1A;display:flex;flex-direction:column;">
+    <div style="height:8px;" class="stripe-yellow"></div>
+    <div style="padding:32px 24px 8px;">
+      <div style="color:#FFC107;font-size:11px;font-weight:700;letter-spacing:.3em;">CORNER CALL</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 24px 36px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="width:42px;height:42px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:20px;">🚕</div>
+        <span style="color:#FFC107;font-weight:900;font-size:19px;">코너 예약</span>
+      </div>
+      <h1 style="color:#fff;font-weight:900;font-size:30px;line-height:1.25;margin-bottom:14px;">
+        모퉁이에서 부르듯<br>간단하게, 코너 택시
+      </h1>
+      <p style="color:#B8B4A8;font-size:15px;line-height:1.7;margin-bottom:32px;">
+        이름과 출발지, 도착지, 시간만 입력하면<br>가까운 기사님께 바로 전달됩니다.
+      </p>
+      <button class="btn btn-yellow" onclick="showPage('p-form')" style="justify-content:space-between;padding:16px 20px;">
+        <span style="display:flex;align-items:center;gap:8px;">🕐 지금 택시 예약하기</span>
+        <span>›</span>
+      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:18px;">
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">24시간</div>
+          <div style="color:#B8B4A8;font-size:11px;">운행</div>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">실시간</div>
+          <div style="color:#B8B4A8;font-size:11px;">배차</div>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 0;text-align:center;">
+          <div style="color:#FFC107;font-weight:700;font-size:13px;">전 지역</div>
+          <div style="color:#B8B4A8;font-size:11px;">이동</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="p-form" class="page hide">
+  <div style="background:#FFC107;padding:52px 24px 28px;position:relative;overflow:hidden;">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:8px;" class="stripe-dark"></div>
+    <button onclick="showPage('p-home')" style="background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;opacity:.7;margin-bottom:12px;font-family:inherit;">← 처음으로</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:20px;">🚕</span>
+      <h2 style="font-weight:900;font-size:22px;color:#1A1A1A;">택시 예약하기</h2>
+    </div>
+    <p style="font-size:13px;opacity:.7;margin-top:4px;">아래 정보를 입력해 주세요</p>
+  </div>
+  <div style="padding:20px;">
+    <div style="background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:0 16px;">
+      <div class="field-row">
+        <div class="field-icon">👤</div>
+        <div style="flex:1;"><div class="field-label">이름</div><input id="f-name" placeholder="이름을 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">📍</div>
+        <div style="flex:1;"><div class="field-label">출발지</div><input id="f-from" placeholder="출발지를 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">🏁</div>
+        <div style="flex:1;"><div class="field-label">도착지</div><input id="f-to" placeholder="도착지를 입력하세요"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field-icon">🕐</div>
+        <div style="flex:1;"><div class="field-label">예약 시간</div><input type="datetime-local" id="f-time"/></div>
+      </div>
+      <div class="field-row" style="border-bottom:none;">
+        <div class="field-icon">📞</div>
+        <div style="flex:1;"><div class="field-label">연락처 (선택)</div><input id="f-phone" placeholder="연락처를 입력하세요" type="tel"/></div>
+      </div>
+    </div>
+    <div id="f-err" class="err-msg hide">⚠️ 이름·출발지·도착지·예약시간을 입력해 주세요.</div>
+    <button class="btn btn-dark" style="margin-top:18px;" onclick="submitForm()">예약 신청 →</button>
+    <p style="text-align:center;color:#B8B4A8;font-size:12px;margin-top:18px;">코너 예약 · 안전한 이동</p>
+  </div>
+</div>
+
+<div id="p-done" class="page hide fadeUp">
+  <div style="min-height:100vh;background:#FBF8EE;display:flex;flex-direction:column;align-items:center;padding:70px 24px 40px;position:relative;overflow:hidden;">
+    <div class="confetti-wrap" id="confetti"></div>
+    <div id="done-icon" style="width:80px;height:80px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:20px;position:relative;z-index:1;">✓</div>
+    <h2 id="done-title" style="font-weight:900;font-size:22px;text-align:center;margin-bottom:8px;position:relative;z-index:1;">예약이 접수되었습니다!</h2>
+    <p id="done-sub" style="color:#8A8578;font-size:14px;text-align:center;margin-bottom:24px;position:relative;z-index:1;">기사님 확인 후 곧 배정해드릴게요.</p>
+    <div style="width:100%;background:#fff;border-radius:16px;border:1px solid #ECEAE3;padding:4px 20px;position:relative;z-index:1;">
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🕐 접수 시간</span><span id="r-time" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">👤 이름</span><span id="r-name" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">📍 출발지</span><span id="r-from" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🏁 도착지</span><span id="r-to" style="font-size:14px;font-weight:700;color:#1A1A1A;margin-left:auto;"></span></div>
+      <div class="field-row" style="border-bottom:none;"><span style="color:#8A8578;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">🚕 상태</span><span id="r-status" style="margin-left:auto;"></span></div>
+    </div>
+    <button class="btn btn-yellow" style="margin-top:24px;position:relative;z-index:1;" onclick="showPage('p-home');resetForm();">🏠 메인으로 돌아가기</button>
+  </div>
+</div>
+
+<!-- ===================== 기사님 화면들 ===================== -->
+<div id="d-login" class="page hide">
+  <div style="min-height:100vh;background:#1A1A1A;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;">
+    <div style="width:100%;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
+        <div style="width:44px;height:44px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:22px;">🚕</div>
+        <span style="color:#FFC107;font-weight:900;font-size:20px;">코너 예약 · 기사님</span>
+      </div>
+      <div style="background:#242424;border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,.1);">
+        <label style="color:#B8B4A8;font-size:12px;font-weight:600;display:block;margin-bottom:6px;">이름</label>
+        <input id="d-name" placeholder="기사님 이름" style="width:100%;background:#1A1A1A;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 16px;font-size:15px;margin-bottom:16px;font-family:inherit;"/>
+        <label style="color:#B8B4A8;font-size:12px;font-weight:600;display:block;margin-bottom:6px;">🔒 비밀번호</label>
+        <input id="d-pw" type="password" placeholder="••••" style="width:100%;background:#1A1A1A;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:13px 16px;font-size:15px;letter-spacing:4px;font-family:monospace;"/>
+        <div id="d-err" class="err-msg hide" style="color:#FF6B6B;">⚠️ <span id="d-err-txt"></span></div>
+        <button class="btn btn-yellow" style="margin-top:20px;" onclick="driverLogin()">기사님으로 로그인</button>
+      </div>
+      <p style="color:#6B675C;font-size:11px;text-align:center;margin-top:14px;">관리자가 부여한 비밀번호로만 접속할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<div id="d-board" class="page hide">
+  <div style="background:#1A1A1A;padding:44px 20px 14px;position:sticky;top:0;z-index:100;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:99px;background:#FFC107;display:flex;align-items:center;justify-content:center;font-size:18px;">🚕</div>
+        <div>
+          <div id="d-username" style="color:#fff;font-weight:700;font-size:14px;"></div>
+          <div id="d-clock" style="color:#8A8578;font-size:11px;font-family:monospace;"></div>
+        </div>
+      </div>
+      <button onclick="driverLogout()" style="background:none;border:none;cursor:pointer;color:#B8B4A8;font-size:12px;font-weight:600;font-family:inherit;">로그아웃 ↩</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="tab-active" onclick="setTab('active')" style="background:#FFC107;color:#1A1A1A;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">대기/내 운행</button>
+      <button id="tab-mine"   onclick="setTab('mine')"   style="background:rgba(255,255,255,.1);color:#B8B4A8;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">내 콜 전체</button>
+      <button id="tab-all"    onclick="setTab('all')"    style="background:rgba(255,255,255,.1);color:#B8B4A8;border:none;cursor:pointer;border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;">전체 콜</button>
+    </div>
+  </div>
+  <div id="wait-banner" class="hide" style="margin:14px 20px 0;">
+    <div style="background:#FFF4CC;color:#8A6D00;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;">🕐 <span id="wait-cnt"></span>건의 배차 대기 콜이 있습니다</div>
+  </div>
+  <div id="ride-list" style="padding:14px 20px 80px;"></div>
+</div>
+
+
+<script>
+// 1. Supabase 프로젝트 정보 (대시보드 API 설정에서 확인 가능)
+    const supabaseUrl = 'https://idrgqjrsguadrnoaktsl.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkcmdxanJzZ3VhZHJub2FrdHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2NDQ0MDEsImV4cCI6MjA5OTIyMDQwMX0.nePbx6sXj9rZvnPQtLwNOJSuVX8-VJpT8g1KLloT3BQ';
+    
+    // 2. 초기화
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // 3. 테스트 (데이터가 잘 들어오는지 확인)
+    async function testConnection() {
+        const { data, error } = await supabaseClient.from('reservations').select('*');
+        if (error) console.error('연결 실패:', error.message, error.details, error.hint);
+        else console.log('연결 성공! 현재 예약 데이터:', data);
+    }
+    
+    // 페이지가 로드되면 연결을 테스트합니다
+    testConnection();  
+
+async function submitForm(){
+  const name = document.getElementById("f-name").value.trim();
+  // ... (다른 변수들도 똑같이 가져오세요)
+
+  // Supabase에 데이터 저장
+  const { data, error } = await supabaseClient
+    .from('reservations')
+    .insert([{ 
+        customer_name: name,
+        departure: from,
+        destination: to,
+        phone_number: phone
+        // status와 reservation_time은 DB에서 자동 처리!
+    }]);
+
+  if (error) {
+    console.error('에러:', error);
+  } else {
+    alert('예약이 접수되었습니다!');
+    showPage("p-done");
+  }
+}
+
+</script>
+</body>
+</html>
