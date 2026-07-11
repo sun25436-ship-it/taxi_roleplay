@@ -281,7 +281,7 @@ async function submitForm(){
   if (errEl) errEl.classList.add('hide');
 
   // Supabase에 데이터 저장
-  const { data, error } = await supabaseClient
+  const { error } = await supabaseClient
     .from('reservations')
     .insert([{ 
         customer_name: name,
@@ -290,8 +290,7 @@ async function submitForm(){
         phone_number: phone,
         reservation_time: time
         // status는 DB에서 자동 처리!
-    }])
-    .select();
+    }]);
 
   if (error) {
     console.error('에러:', error);
@@ -308,17 +307,138 @@ async function submitForm(){
   }
 }
 
-    // ===================== 기사님 화면 (준비 중) =====================
-    // TODO: 실제 로그인 검증(Supabase auth 또는 별도 테이블 확인)과
-    // 실시간 콜 목록 로직은 별도로 구현이 필요합니다. 지금은 에러 방지용 임시 함수입니다.
+    // ===================== 기사님 화면 =====================
+    const DRIVER_NAME = '성하윤';
+    const DRIVER_PW = '1247';
+    let currentTab = 'active';
+    let clockTimer = null;
+
     function driverLogin(){
-      alert('기사님 기능은 아직 준비 중이에요.');
+      const name = document.getElementById('d-name').value.trim();
+      const pw = document.getElementById('d-pw').value.trim();
+      const errEl = document.getElementById('d-err');
+      const errTxt = document.getElementById('d-err-txt');
+
+      if (name !== DRIVER_NAME || pw !== DRIVER_PW){
+        errTxt.textContent = '이름 또는 비밀번호가 올바르지 않습니다.';
+        errEl.classList.remove('hide');
+        return;
+      }
+      errEl.classList.add('hide');
+
+      document.getElementById('d-username').textContent = name + ' 기사님';
+      showPage('d-board');
+      startClock();
+      setTab('active');
     }
+
     function driverLogout(){
+      if (clockTimer) clearInterval(clockTimer);
+      document.getElementById('d-name').value = '';
+      document.getElementById('d-pw').value = '';
       setMode('passenger');
     }
+
+    function startClock(){
+      const clockEl = document.getElementById('d-clock');
+      const tick = () => {
+        clockEl.textContent = new Date().toLocaleString('ko-KR');
+      };
+      tick();
+      if (clockTimer) clearInterval(clockTimer);
+      clockTimer = setInterval(tick, 1000);
+    }
+
     function setTab(tab){
-      console.log('탭 전환:', tab);
+      currentTab = tab;
+      ['active','mine','all'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (!btn) return;
+        if (t === tab){
+          btn.style.background = '#FFC107';
+          btn.style.color = '#1A1A1A';
+        } else {
+          btn.style.background = 'rgba(255,255,255,.1)';
+          btn.style.color = '#B8B4A8';
+        }
+      });
+      loadRides();
+    }
+
+    async function loadRides(){
+      const listEl = document.getElementById('ride-list');
+      const waitBanner = document.getElementById('wait-banner');
+      const waitCnt = document.getElementById('wait-cnt');
+
+      let query = supabaseClient.from('reservations').select('*').order('reservation_time', { ascending: true });
+
+      if (currentTab === 'active'){
+        // 대기중인 콜 + 내가 수락한 콜
+      } else if (currentTab === 'mine'){
+        query = query.eq('driver_name', DRIVER_NAME);
+      }
+      // 'all'은 필터 없이 전체 표시
+
+      const { data, error } = await query;
+      if (error){
+        listEl.innerHTML = '<p style="color:#C0392B;">목록을 불러오지 못했습니다.</p>';
+        console.error('목록 조회 에러:', error);
+        return;
+      }
+
+      let rows = data || [];
+      if (currentTab === 'active'){
+        rows = rows.filter(r => r.status === '대기중' || r.driver_name === DRIVER_NAME);
+      }
+
+      const waitingCount = rows.filter(r => r.status === '대기중').length;
+      if (waitingCount > 0){
+        waitBanner.classList.remove('hide');
+        waitCnt.textContent = waitingCount;
+      } else {
+        waitBanner.classList.add('hide');
+      }
+
+      if (rows.length === 0){
+        listEl.innerHTML = '<p style="color:#8A8578;text-align:center;padding:40px 0;">표시할 콜이 없습니다.</p>';
+        return;
+      }
+
+      listEl.innerHTML = rows.map(r => {
+        const isMine = r.driver_name === DRIVER_NAME;
+        const statusColor = r.status === '대기중' ? '#8A6D00' : (r.status === '배차완료' ? '#2ECC71' : '#8A8578');
+        const statusBg = r.status === '대기중' ? '#FFF4CC' : (r.status === '배차완료' ? '#E8F8F0' : '#ECEAE3');
+        const timeStr = r.reservation_time ? new Date(r.reservation_time).toLocaleString('ko-KR') : '';
+
+        return `
+          <div class="card ${isMine ? 'card-accepted' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span class="pill" style="background:${statusBg};color:${statusColor};">${r.status || ''}</span>
+              <span style="font-size:12px;color:#8A8578;">${timeStr}</span>
+            </div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">${r.customer_name || ''}</div>
+            <div style="font-size:13px;color:#4A473F;margin-bottom:2px;">📍 ${r.departure || ''}</div>
+            <div style="font-size:13px;color:#4A473F;margin-bottom:10px;">🏁 ${r.destination || ''}</div>
+            ${r.status === '대기중'
+              ? `<button class="btn btn-yellow" onclick="acceptRide(${r.id})">이 콜 수락하기</button>`
+              : (isMine ? `<div style="font-size:12px;color:#2ECC71;font-weight:700;">✓ 내가 수락한 콜입니다</div>` : '')}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function acceptRide(id){
+      const { error } = await supabaseClient
+        .from('reservations')
+        .update({ status: '배차완료', driver_name: DRIVER_NAME })
+        .eq('id', id);
+
+      if (error){
+        alert('수락 처리 중 오류가 발생했습니다.');
+        console.error('수락 에러:', error);
+        return;
+      }
+      loadRides();
     }
 </script>
 </body>
